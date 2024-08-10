@@ -1,7 +1,7 @@
 from tensorflow.keras import models, layers
 from Models import layer_4_mod
 from Models import layer_4_no_mod
-from attention_blocks import channel_attention, spatial_attention
+from Models.attention_blocks import channel_attention, spatial_attention
 
 def create_model():
     # 4-layer modified model
