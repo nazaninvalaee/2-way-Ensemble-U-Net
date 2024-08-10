@@ -1,5 +1,5 @@
 from tensorflow.keras import models, layers
-from attention_blocks import channel_attention, spatial_attention
+from Models.attention_blocks import channel_attention, spatial_attention
 
 def create_model(ensem=0):
 
