@@ -3,7 +3,7 @@ import os
 import nibabel as nib
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
-from preprocessing import reduce_2d, flip, blur
+from Dataset.preprocessing import reduce_2d, flip, blur
 
 def split_dataset(input_mri, output_mri, test_size):
     input_mri = np.array(input_mri, dtype=np.uint8)
