@@ -24,12 +24,21 @@ def channel_attention(input_feature, ratio=8):
 
 # Spatial Attention Block
 def spatial_attention(input_feature):
-    avg_pool = layers.Lambda(lambda x: layers.backend.mean(x, axis=-1, keepdims=True))(input_feature)
-    max_pool = layers.Lambda(lambda x: layers.backend.max(x, axis=-1, keepdims=True))(input_feature)
+    # Get the shape of the input
+    input_shape = input_feature.shape
+
+    # Use Lambda to calculate the average and maximum pooling along the channel axis
+    avg_pool = layers.Lambda(lambda x: layers.backend.mean(x, axis=-1, keepdims=True), output_shape=(input_shape[1], input_shape[2], 1))(input_feature)
+    max_pool = layers.Lambda(lambda x: layers.backend.max(x, axis=-1, keepdims=True), output_shape=(input_shape[1], input_shape[2], 1))(input_feature)
+
+    # Concatenate along the channel axis
     concat = layers.Concatenate(axis=-1)([avg_pool, max_pool])
+
+    # Apply a 7x7 convolution with sigmoid activation
     spatial_attention = layers.Conv2D(filters=1, kernel_size=7, activation='sigmoid', padding='same', use_bias=False)(concat)
 
     return layers.Multiply()([input_feature, spatial_attention])
+
 
 # Residual Block
 def residual_block(x, filters):
