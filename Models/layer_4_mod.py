@@ -98,7 +98,8 @@ def create_model(ensem=0):
     if ensem == 1:
         model = models.Model(inputs=inp, outputs=conv7)
     else:
-        outp1 = layers.Conv2D(8, 1, name='output1', activation='sigmoid', padding='same')(conv7)
+        # Ensure final output has consistent filters (e.g., 16 filters)
+        outp1 = layers.Conv2D(16, 1, name='output1', activation='relu', padding='same')(conv7)
         model = models.Model(inputs=inp, outputs=outp1)
-        
+
     return model
