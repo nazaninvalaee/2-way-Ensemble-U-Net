@@ -4,7 +4,6 @@ from tensorflow.keras.layers import Add, Multiply
 # Channel Attention Block
 def channel_attention(input_feature, ratio=8):
     channel = input_feature.shape[-1]
-
     shared_layer_one = layers.Dense(channel // ratio, activation='relu')
     shared_layer_two = layers.Dense(channel, activation='sigmoid')
 
@@ -18,8 +17,8 @@ def channel_attention(input_feature, ratio=8):
     max_pool = shared_layer_one(max_pool)
     max_pool = shared_layer_two(max_pool)
 
-    cbam_feature = Add()([avg_pool, max_pool])
-    cbam_feature = Multiply()([input_feature, cbam_feature])
+    cbam_feature = layers.Add()([avg_pool, max_pool])
+    cbam_feature = layers.Multiply()([input_feature, cbam_feature])
 
     return cbam_feature
 
@@ -50,10 +49,9 @@ def multi_scale_conv(x, filters):
 
 # Updated Model with Attention, Residual Blocks, and Multi-Scale Convolutions
 def create_model(ensem=0):
-
     inp = layers.Input(shape=(256, 256, 1))
 
-    # Multi-scale feature extraction at the input layer
+    # Downsample path
     conv1 = multi_scale_conv(inp, 16)
     conv1 = residual_block(conv1, 16)
     pool1 = layers.MaxPool2D(2)(conv1)
@@ -66,40 +64,38 @@ def create_model(ensem=0):
     conv3 = residual_block(conv3, 64)
     pool3 = layers.MaxPool2D(2)(conv3)
 
-    conv8 = multi_scale_conv(pool3, 128)
-    conv8 = residual_block(conv8, 128)
-    pool4 = layers.MaxPool2D(2)(conv8)
+    conv4 = multi_scale_conv(pool3, 128)
+    conv4 = residual_block(conv4, 128)
+    pool4 = layers.MaxPool2D(2)(conv4)
 
-    # Bottleneck layer
-    conv4_ = multi_scale_conv(pool4, 256)
-    conv4 = residual_block(conv4_, 256)
+    bottleneck = multi_scale_conv(pool4, 256)
+    bottleneck = residual_block(bottleneck, 256)
 
-    # Apply Channel and Spatial Attention
-    conv4 = channel_attention(conv4)
-    conv4 = spatial_attention(conv4)
+    # Attention blocks
+    bottleneck = channel_attention(bottleneck)
+    bottleneck = spatial_attention(bottleneck)
 
-    # Upsampling path
-    dconv4 = layers.Conv2DTranspose(128, 3, strides=2, activation='relu', padding='same')(conv4)
-    conc4 = layers.concatenate([dconv4, conv8])
-    conv9 = residual_block(conc4, 128)
+    # Upsample path
+    up4 = layers.Conv2DTranspose(128, 3, strides=2, activation='relu', padding='same')(bottleneck)
+    concat4 = layers.concatenate([up4, conv4])
+    up4_conv = residual_block(concat4, 128)
 
-    dconv3 = layers.Conv2DTranspose(64, 3, strides=2, activation='relu', padding='same')(conv9)
-    conc3 = layers.concatenate([dconv3, conv3])
-    conv5 = residual_block(conc3, 64)
+    up3 = layers.Conv2DTranspose(64, 3, strides=2, activation='relu', padding='same')(up4_conv)
+    concat3 = layers.concatenate([up3, conv3])
+    up3_conv = residual_block(concat3, 64)
 
-    dconv2 = layers.Conv2DTranspose(32, 3, strides=2, activation='relu', padding='same')(conv5)
-    conc2 = layers.concatenate([dconv2, conv2])
-    conv6 = residual_block(conc2, 32)
+    up2 = layers.Conv2DTranspose(32, 3, strides=2, activation='relu', padding='same')(up3_conv)
+    concat2 = layers.concatenate([up2, conv2])
+    up2_conv = residual_block(concat2, 32)
 
-    dconv1 = layers.Conv2DTranspose(16, 3, strides=2, activation='relu', padding='same')(conv6)
-    conc1 = layers.concatenate([dconv1, conv1])
-    conv7 = residual_block(conc1, 16)
+    up1 = layers.Conv2DTranspose(16, 3, strides=2, activation='relu', padding='same')(up2_conv)
+    concat1 = layers.concatenate([up1, conv1])
+    up1_conv = residual_block(concat1, 16)
 
     if ensem == 1:
-        model = models.Model(inputs=inp, outputs=conv7)
+        model = models.Model(inputs=inp, outputs=up1_conv)
     else:
-        # Ensure final output has consistent filters (e.g., 16 filters)
-        outp1 = layers.Conv2D(16, 1, name='output1', activation='relu', padding='same')(conv7)
-        model = models.Model(inputs=inp, outputs=outp1)
+        final_output = layers.Conv2D(8, 1, activation='sigmoid', padding='same')(up1_conv)
+        model = models.Model(inputs=inp, outputs=final_output)
 
     return model
