@@ -13,12 +13,20 @@ def create_model():
     inp = layers.Input(shape=(256, 256, 1))
 
     # Get outputs from both models
-    out1 = model1(inp)  # Shape (256, 256, 48)
-    out2 = model2(inp)  # Shape (256, 256, 16)
+    out1 = model1(inp)  # Get output from layer_4_mod
+    out2 = model2(inp)  # Get output from layer_4_no_mod
 
-    # Align the number of channels (for example, project both to 16 channels)
-    out1 = layers.Conv2D(16, 1, activation='relu', padding='same')(out1)  # Shape (256, 256, 16)
-    out2 = layers.Conv2D(16, 1, activation='relu', padding='same')(out2)  # Shape (256, 256, 16)
+    # Print the shapes of out1 and out2 for debugging
+    print(f"Shape of out1 (from layer_4_mod): {out1.shape}")
+    print(f"Shape of out2 (from layer_4_no_mod): {out2.shape}")
+
+    # Align the number of channels (project to 16 channels)
+    out1 = layers.Conv2D(16, 1, activation='relu', padding='same')(out1)
+    out2 = layers.Conv2D(16, 1, activation='relu', padding='same')(out2)
+
+    # Print the shapes after projection for verification
+    print(f"Shape of out1 after Conv2D(16): {out1.shape}")
+    print(f"Shape of out2 after Conv2D(16): {out2.shape}")
 
     # Concatenate the outputs from both models
     conc1 = layers.concatenate([out1, out2])
