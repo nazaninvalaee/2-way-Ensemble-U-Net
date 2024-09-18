@@ -3,6 +3,7 @@ from tensorflow.keras import models, layers
 def create_model(ensem=0):
     inp = layers.Input(shape=(256, 256, 1))
 
+    # Downsample path
     conv1 = layers.Conv2D(16, 3, activation='relu', padding='same')(inp)
     conv1 = layers.Conv2D(16, 3, activation='relu', padding='same')(conv1)
     pool1 = layers.MaxPool2D(2)(conv1)
@@ -15,38 +16,33 @@ def create_model(ensem=0):
     conv3 = layers.Conv2D(64, 3, activation='relu', padding='same')(conv3)
     pool3 = layers.MaxPool2D(2)(conv3)
 
-    conv8 = layers.Conv2D(128, 3, activation='relu', padding='same')(pool3)
-    conv8 = layers.Conv2D(128, 3, activation='relu', padding='same')(conv8)
-    pool4 = layers.MaxPool2D(2)(conv8)
+    conv4 = layers.Conv2D(128, 3, activation='relu', padding='same')(pool3)
+    conv4 = layers.Conv2D(128, 3, activation='relu', padding='same')(conv4)
+    pool4 = layers.MaxPool2D(2)(conv4)
 
-    conv4_ = layers.Conv2D(256, 3, activation='relu', padding='same')(pool4)
-    conv4 = layers.Conv2D(256, 3, activation='relu', padding='same')(conv4_)
+    bottleneck = layers.Conv2D(256, 3, activation='relu', padding='same')(pool4)
 
-    dconv4 = layers.Conv2DTranspose(128, 3, strides=2, activation='relu', padding='same')(conv4)
-    conc4 = layers.concatenate([dconv4, conv8])
-    conv9 = layers.Conv2D(128, 3, activation='relu', padding='same')(conc4)
-    conv9 = layers.Conv2D(128, 3, activation='relu', padding='same')(conv9)
+    # Upsample path
+    up4 = layers.Conv2DTranspose(128, 3, strides=2, activation='relu', padding='same')(bottleneck)
+    concat4 = layers.concatenate([up4, conv4])
+    up4_conv = layers.Conv2D(128, 3, activation='relu', padding='same')(concat4)
 
-    dconv3 = layers.Conv2DTranspose(64, 3, strides=2, activation='relu', padding='same')(conv9)
-    conc3 = layers.concatenate([dconv3, conv3])
-    conv5 = layers.Conv2D(64, 3, activation='relu', padding='same')(conc3)
-    conv5 = layers.Conv2D(64, 3, activation='relu', padding='same')(conv5)
+    up3 = layers.Conv2DTranspose(64, 3, strides=2, activation='relu', padding='same')(up4_conv)
+    concat3 = layers.concatenate([up3, conv3])
+    up3_conv = layers.Conv2D(64, 3, activation='relu', padding='same')(concat3)
 
-    dconv2 = layers.Conv2DTranspose(32, 3, strides=2, activation='relu', padding='same')(conv5)
-    conc2 = layers.concatenate([dconv2, conv2])
-    conv6 = layers.Conv2D(32, 3, activation='relu', padding='same')(conc2)
-    conv6 = layers.Conv2D(32, 3, activation='relu', padding='same')(conv6)
+    up2 = layers.Conv2DTranspose(32, 3, strides=2, activation='relu', padding='same')(up3_conv)
+    concat2 = layers.concatenate([up2, conv2])
+    up2_conv = layers.Conv2D(32, 3, activation='relu', padding='same')(concat2)
 
-    dconv1 = layers.Conv2DTranspose(16, 3, strides=2, activation='relu', padding='same')(conv6)
-    conc1 = layers.concatenate([dconv1, conv1])
-    conv7 = layers.Conv2D(16, 3, activation='relu', padding='same')(conc1)
-    conv7 = layers.Conv2D(16, 3, activation='relu', padding='same')(conv7)
+    up1 = layers.Conv2DTranspose(16, 3, strides=2, activation='relu', padding='same')(up2_conv)
+    concat1 = layers.concatenate([up1, conv1])
+    up1_conv = layers.Conv2D(16, 3, activation='relu', padding='same')(concat1)
 
     if ensem == 1:
-        model = models.Model(inputs=inp, outputs=conv7)
+        model = models.Model(inputs=inp, outputs=up1_conv)
     else:
-        # Ensure final output has consistent filters (e.g., 16 filters)
-        outp1 = layers.Conv2D(16, 1, name='output1', activation='relu', padding='same')(conv7)
-        model = models.Model(inputs=inp, outputs=outp1)
+        final_output = layers.Conv2D(8, 1, activation='sigmoid', padding='same')(up1_conv)
+        model = models.Model(inputs=inp, outputs=final_output)
 
     return model
