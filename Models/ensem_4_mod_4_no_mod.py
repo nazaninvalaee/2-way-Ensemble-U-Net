@@ -26,6 +26,7 @@ def channel_attention(input_feature, ratio=8):
 
 # Ensemble model
 def create_model():
+
     # Load 4 layer mod and no mod models
     model1 = layer_4_mod.create_model(1)
     model2 = layer_4_no_mod.create_model(1)
@@ -34,15 +35,11 @@ def create_model():
     inp = layers.Input(shape=(256, 256, 1))
 
     # Get outputs from both models
-    out1 = model1(inp)
-    out2 = model2(inp)
-
-    # Standardize the output depth of both models before concatenating
-    out1 = layers.Conv2D(16, 1, activation='relu', padding='same')(out1)  # Ensure out1 has shape (256, 256, 16)
-    out2 = layers.Conv2D(16, 1, activation='relu', padding='same')(out2)  # Ensure out2 has shape (256, 256, 16)
+    out1 = model1(inp)  # (256, 256, 16)
+    out2 = model2(inp)  # (256, 256, 16)
 
     # Concatenate the outputs from both models
-    conc1 = layers.concatenate([out2, out1])
+    conc1 = layers.concatenate([out1, out2])  # Shape will be (256, 256, 32)
 
     # Apply attention mechanism to the concatenated output
     conc1 = channel_attention(conc1)
